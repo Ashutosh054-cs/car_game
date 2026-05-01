@@ -46,6 +46,7 @@
     font-size: clamp(36px, 8vw, 72px);
     font-weight: 900;
     background: linear-gradient(135deg, #f093fb, #f5576c, #fda085);
+    background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     text-transform: uppercase;
@@ -187,8 +188,22 @@
     border-radius: 3px;
     transition: width 0.1s;
   }
-  .lives { display: flex; gap: 4px; margin-top: 4px; }
-  .heart { font-size: clamp(14px, 2.8vw, 20px); }
+  .lives {
+    display: flex;
+    gap: 5px;
+    margin-top: 4px;
+    padding: 6px 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+  .heart {
+    font-size: clamp(15px, 3vw, 21px);
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+  }
   #mobile-controls {
     position: absolute;
     bottom: 20px;
@@ -244,20 +259,28 @@
   }
   .pause-btn {
     position: absolute;
-    top: 10px; right: 16px;
-    width: 40px; height: 40px;
-    border-radius: 50%;
-    border: 2px solid rgba(255,255,255,0.2);
-    background: rgba(255,255,255,0.08);
+    top: 12px; right: 12px;
+    width: 48px; height: 48px;
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.22);
+    background: rgba(8, 10, 24, 0.35);
     color: white;
-    font-size: 16px;
+    font-size: 18px;
+    font-weight: 700;
     cursor: pointer;
     z-index: 16;
     display: none;
     align-items: center;
     justify-content: center;
     pointer-events: auto;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
   }
+  .pause-btn:hover { transform: translateY(-1px); background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.34); }
+  .pause-btn:active { transform: scale(0.96); }
+  .pause-btn.is-paused { background: rgba(245, 87, 108, 0.24); border-color: rgba(245, 87, 108, 0.5); }
   #new-best {
     display: none;
     color: #fda085;
@@ -307,7 +330,39 @@
   }
   .track-btn.selected { border-color: #f093fb; color: #f093fb; }
   @media (max-width: 480px) {
-    #mobile-controls { bottom: 10px; }
+    #mobile-controls {
+      bottom: 12px;
+      padding: 0 12px;
+    }
+    #hud { padding: 10px 12px; }
+    .hud-center { margin-top: 2px; }
+    .hud-right { padding-right: 0; }
+    .lives { padding: 5px 7px; gap: 4px; }
+    .pause-btn {
+      top: 72px;
+      right: 10px;
+      width: 54px;
+      height: 54px;
+      border-radius: 18px;
+      font-size: 20px;
+    }
+    .ctrl-group {
+      gap: 12px;
+    }
+    .ctrl-btn {
+      width: 72px;
+      height: 72px;
+      font-size: 28px;
+    }
+    .ctrl-btn-gas {
+      width: 84px;
+      height: 84px;
+    }
+    .pause-btn {
+      width: 48px;
+      height: 48px;
+      font-size: 18px;
+    }
   }
   @media (hover: hover) and (pointer: fine) {
     #mobile-controls { display: none !important; }
@@ -395,13 +450,9 @@
 <button class="pause-btn" id="pauseBtn">⏸</button>
 
 <div id="mobile-controls">
-  <div class="ctrl-group" style="flex-direction:row;gap:8px;align-items:flex-end;">
+  <div class="ctrl-group" style="flex-direction:row;gap:8px;align-items:flex-end;justify-content:center;width:100%;">
     <button class="ctrl-btn" id="ctrlLeft">◀</button>
     <button class="ctrl-btn" id="ctrlRight">▶</button>
-  </div>
-  <div class="ctrl-group" style="flex-direction:row;gap:8px;align-items:flex-end;">
-    <button class="ctrl-btn ctrl-btn-brake" id="ctrlBrake">■</button>
-    <button class="ctrl-btn ctrl-btn-gas" id="ctrlGas">▲</button>
   </div>
 </div>
 
@@ -523,6 +574,7 @@ let roadWidth, laneWidth, numLanes;
 let carWidth, carHeight;
 let playerX, playerY, playerTargetX;
 let speed, maxSpeed, accel, decel, steerSpeed;
+let autoAccelRate;
 let distance, score, combo, comboTimer;
 let lives, maxLives;
 let invincibleTimer;
@@ -535,7 +587,7 @@ let roadOffset;
 let roadCurve;
 let curveTimer;
 let engineSoundTimer;
-let touchLeft, touchRight, touchGas, touchBrake;
+let touchLeft, touchRight;
 
 // ===== TRACK THEMES =====
 const tracks = {
@@ -573,6 +625,16 @@ const tracks = {
 
 // ===== CAR COLORS =====
 const carColors = ['#f5576c', '#22cc77', '#fda085', '#7b68ee'];
+const carStats = [
+  { maxSpeed: 150, accel: 90 },
+  { maxSpeed: 200, accel: 110 },
+  { maxSpeed: 350, accel: 160 },
+  { maxSpeed: 400, accel: 180 }
+];
+
+function isMobileDevice() {
+  return window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+}
 
 // ===== INIT =====
 function resize() {
@@ -654,11 +716,9 @@ document.addEventListener('keyup', e => { keys[e.code] = false; });
 
 function isLeft() { return keys['ArrowLeft'] || keys['KeyA'] || touchLeft; }
 function isRight() { return keys['ArrowRight'] || keys['KeyD'] || touchRight; }
-function isGas() { return keys['ArrowUp'] || keys['KeyW'] || touchGas; }
-function isBrake() { return keys['ArrowDown'] || keys['KeyS'] || touchBrake; }
 
 // Touch controls
-touchLeft = false; touchRight = false; touchGas = false; touchBrake = false;
+touchLeft = false; touchRight = false;
 
 function setupTouchBtn(id, val) {
   const el = document.getElementById(id);
@@ -669,13 +729,13 @@ function setupTouchBtn(id, val) {
 }
 // Must use closures for touch state
 (function() {
-  const state = { left:false, right:false, gas:false, brake:false };
+  const state = { left:false, right:false };
   window.touchState = state;
   
-  ['ctrlLeft','ctrlRight','ctrlGas','ctrlBrake'].forEach(id => {
+  ['ctrlLeft','ctrlRight'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
-    const key = id === 'ctrlLeft' ? 'left' : id === 'ctrlRight' ? 'right' : id === 'ctrlGas' ? 'gas' : 'brake';
+    const key = id === 'ctrlLeft' ? 'left' : 'right';
     el.addEventListener('touchstart', e => { e.preventDefault(); state[key] = true; el.classList.add('active'); }, {passive:false});
     el.addEventListener('touchend', e => { e.preventDefault(); state[key] = false; el.classList.remove('active'); }, {passive:false});
     el.addEventListener('touchcancel', e => { state[key] = false; el.classList.remove('active'); });
@@ -686,8 +746,6 @@ function setupTouchBtn(id, val) {
 
 function isLeft() { return keys['ArrowLeft'] || keys['KeyA'] || window.touchState.left; }
 function isRight() { return keys['ArrowRight'] || keys['KeyD'] || window.touchState.right; }
-function isGas() { return keys['ArrowUp'] || keys['KeyW'] || window.touchState.gas; }
-function isBrake() { return keys['ArrowDown'] || keys['KeyS'] || window.touchState.brake; }
 
 // ===== DIFFICULTY SETTINGS =====
 function getDiffSettings() {
@@ -701,19 +759,21 @@ function getDiffSettings() {
 // ===== INITIALIZE GAME =====
 function initGame() {
   initAudio();
-  const ds = getDiffSettings();
+  const car = carStats[selectedCar] || carStats[0];
+  const mobile = isMobileDevice();
   
   speed = 0;
-  maxSpeed = ds.maxSpeed;
-  accel = ds.accel;
+  maxSpeed = car.maxSpeed;
+  accel = car.accel;
+  autoAccelRate = car.accel * 0.12;
   decel = 150;
-  steerSpeed = 320;
+  steerSpeed = mobile ? 250 : 320;
   distance = 0;
   score = 0;
   combo = 1;
   comboTimer = 0;
   lives = 3;
-  maxLives = 5;
+  maxLives = 3;
   invincibleTimer = 0;
   boostTimer = 0;
   shieldTimer = 0;
@@ -984,16 +1044,12 @@ function update(dt) {
   playerTargetX = Math.max(rl + carWidth / 2 + 4, Math.min(rr - carWidth / 2 - 4, playerTargetX));
   
   // Smooth movement
-  playerX += (playerTargetX - playerX) * Math.min(1, dt * 12);
+  const steerLerp = isMobileDevice() ? 9 : 12;
+  playerX += (playerTargetX - playerX) * Math.min(1, dt * steerLerp);
   
-  // Acceleration
-  if (isGas()) {
-    speed += accel * dt;
-  } else if (isBrake()) {
-    speed -= decel * 2 * dt;
-  } else {
-    speed -= decel * 0.5 * dt;
-  }
+  // Auto-acceleration
+  autoAccelRate = Math.min(accel, autoAccelRate + accel * 0.08 * dt);
+  speed = Math.min(maxSpeed, speed + autoAccelRate * dt);
   
   // Boost
   if (boostTimer > 0) {
@@ -1143,9 +1199,6 @@ function update(dt) {
   
   // Update shake
   if (shakeTimer > 0) shakeTimer -= dt;
-  
-  // Difficulty scaling
-  maxSpeed = getDiffSettings().maxSpeed + distance * 0.02;
   
   updateHUD();
 }
@@ -1497,10 +1550,12 @@ document.getElementById('pauseBtn').addEventListener('click', () => {
   if (gameState === 'playing') {
     gameState = 'paused';
     document.getElementById('pauseBtn').textContent = '▶';
+    document.getElementById('pauseBtn').classList.add('is-paused');
     stopEngineSound();
   } else if (gameState === 'paused') {
     gameState = 'playing';
     document.getElementById('pauseBtn').textContent = '⏸';
+    document.getElementById('pauseBtn').classList.remove('is-paused');
     startEngineSound();
     lastTime = performance.now();
   }
