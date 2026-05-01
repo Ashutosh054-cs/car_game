@@ -215,12 +215,6 @@
     z-index: 15;
     pointer-events: none;
   }
-  .ctrl-group {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    pointer-events: auto;
-  }
   .ctrl-btn {
     width: clamp(52px, 12vw, 70px);
     height: clamp(52px, 12vw, 70px);
@@ -281,36 +275,6 @@
   .pause-btn:hover { transform: translateY(-1px); background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.34); }
   .pause-btn:active { transform: scale(0.96); }
   .pause-btn.is-paused { background: rgba(245, 87, 108, 0.24); border-color: rgba(245, 87, 108, 0.5); }
-  #mobile-hud {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 14px;
-    display: none;
-    justify-content: center;
-    z-index: 16;
-    pointer-events: none;
-  }
-  .mobile-hud-panel {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 14px;
-    border-radius: 20px;
-    background: rgba(8, 10, 24, 0.42);
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    pointer-events: auto;
-  }
-  .mobile-hud-label {
-    color: #8888aa;
-    font-size: 11px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    font-weight: 700;
-  }
   #new-best {
     display: none;
     color: #fda085;
@@ -362,7 +326,9 @@
   @media (hover: none), (pointer: coarse), (max-width: 768px) {
     #mobile-controls {
       bottom: 12px;
-      padding: 0 12px;
+      padding: 0 24px;
+      justify-content: space-between;
+      align-items: center;
     }
     #hud {
       padding: 8px 12px;
@@ -388,22 +354,7 @@
       align-items: flex-start;
       flex: 1;
     }
-    #mobile-hud {
-      display: flex;
-    }
     .lives { padding: 5px 7px; gap: 4px; }
-    .pause-btn {
-      width: 54px;
-      height: 54px;
-      border-radius: 18px;
-      font-size: 20px;
-    }
-    #pauseBtn {
-      display: none !important;
-    }
-    .ctrl-group {
-      gap: 12px;
-    }
     .ctrl-btn {
       width: 72px;
       height: 72px;
@@ -500,17 +451,8 @@
 <button class="pause-btn" id="pauseBtn">⏸</button>
 
 <div id="mobile-controls">
-  <div class="ctrl-group" style="flex-direction:row;gap:8px;align-items:flex-end;justify-content:center;width:100%;">
-    <button class="ctrl-btn" id="ctrlLeft">◀</button>
-    <button class="ctrl-btn" id="ctrlRight">▶</button>
-  </div>
-</div>
-
-<div id="mobile-hud">
-  <div class="mobile-hud-panel">
-    <div class="mobile-hud-label">Pause</div>
-    <button class="pause-btn" id="pauseBtnMobile">⏸</button>
-  </div>
+  <button class="ctrl-btn" id="ctrlLeft">◀</button>
+  <button class="ctrl-btn" id="ctrlRight">▶</button>
 </div>
 
 <script>
@@ -1508,7 +1450,6 @@ function gameOver() {
   
   document.getElementById('hud').style.display = 'none';
   document.getElementById('pauseBtn').style.display = 'none';
-  document.getElementById('mobile-hud').style.display = 'none';
   document.getElementById('mobile-controls').style.display = 'none';
   document.getElementById('game-over-screen').style.display = 'flex';
 }
@@ -1587,7 +1528,7 @@ function gameLoop(timestamp) {
 }
 
 // ===== UI EVENT LISTENERS =====
-const pauseButtons = [document.getElementById('pauseBtn'), document.getElementById('pauseBtnMobile')].filter(Boolean);
+const pauseButtons = [document.getElementById('pauseBtn')].filter(Boolean);
 
 function setPauseButtonState(isPaused) {
   pauseButtons.forEach(button => {
@@ -1599,13 +1540,9 @@ function setPauseButtonState(isPaused) {
 function setPauseControlsVisible(visible) {
   const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
   const desktopPause = document.getElementById('pauseBtn');
-  const mobileHud = document.getElementById('mobile-hud');
 
   if (desktopPause) {
     desktopPause.style.display = visible && !isTouchDevice ? 'flex' : 'none';
-  }
-  if (mobileHud) {
-    mobileHud.style.display = visible && isTouchDevice ? 'flex' : 'none';
   }
 }
 
