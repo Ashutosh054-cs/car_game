@@ -281,6 +281,36 @@
   .pause-btn:hover { transform: translateY(-1px); background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.34); }
   .pause-btn:active { transform: scale(0.96); }
   .pause-btn.is-paused { background: rgba(245, 87, 108, 0.24); border-color: rgba(245, 87, 108, 0.5); }
+  #mobile-hud {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 14px;
+    display: none;
+    justify-content: center;
+    z-index: 16;
+    pointer-events: none;
+  }
+  .mobile-hud-panel {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 20px;
+    background: rgba(8, 10, 24, 0.42);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    pointer-events: auto;
+  }
+  .mobile-hud-label {
+    color: #8888aa;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
   #new-best {
     display: none;
     color: #fda085;
@@ -329,22 +359,47 @@
     letter-spacing: 1px;
   }
   .track-btn.selected { border-color: #f093fb; color: #f093fb; }
-  @media (max-width: 480px) {
+  @media (hover: none), (pointer: coarse), (max-width: 768px) {
     #mobile-controls {
       bottom: 12px;
       padding: 0 12px;
     }
-    #hud { padding: 10px 12px; }
-    .hud-center { margin-top: 2px; }
-    .hud-right { padding-right: 0; }
+    #hud {
+      padding: 8px 12px;
+      flex-direction: row;
+      flex-wrap: nowrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .hud-center {
+      position: static;
+      left: auto;
+      transform: none;
+      margin-top: 0;
+      align-items: center;
+      flex: 1;
+    }
+    .hud-right {
+      align-items: flex-end;
+      padding-right: 0;
+    }
+    .hud-left {
+      align-items: flex-start;
+      flex: 1;
+    }
+    #mobile-hud {
+      display: flex;
+    }
     .lives { padding: 5px 7px; gap: 4px; }
     .pause-btn {
-      top: 72px;
-      right: 10px;
       width: 54px;
       height: 54px;
       border-radius: 18px;
       font-size: 20px;
+    }
+    #pauseBtn {
+      display: none !important;
     }
     .ctrl-group {
       gap: 12px;
@@ -357,11 +412,6 @@
     .ctrl-btn-gas {
       width: 84px;
       height: 84px;
-    }
-    .pause-btn {
-      width: 48px;
-      height: 48px;
-      font-size: 18px;
     }
   }
   @media (hover: hover) and (pointer: fine) {
@@ -453,6 +503,13 @@
   <div class="ctrl-group" style="flex-direction:row;gap:8px;align-items:flex-end;justify-content:center;width:100%;">
     <button class="ctrl-btn" id="ctrlLeft">◀</button>
     <button class="ctrl-btn" id="ctrlRight">▶</button>
+  </div>
+</div>
+
+<div id="mobile-hud">
+  <div class="mobile-hud-panel">
+    <div class="mobile-hud-label">Pause</div>
+    <button class="pause-btn" id="pauseBtnMobile">⏸</button>
   </div>
 </div>
 
@@ -1451,6 +1508,7 @@ function gameOver() {
   
   document.getElementById('hud').style.display = 'none';
   document.getElementById('pauseBtn').style.display = 'none';
+  document.getElementById('mobile-hud').style.display = 'none';
   document.getElementById('mobile-controls').style.display = 'none';
   document.getElementById('game-over-screen').style.display = 'flex';
 }
@@ -1489,7 +1547,8 @@ function startGame() {
   document.getElementById('start-screen').style.display = 'none';
   document.getElementById('game-over-screen').style.display = 'none';
   document.getElementById('hud').style.display = 'flex';
-  document.getElementById('pauseBtn').style.display = 'flex';
+  setPauseButtonState(false);
+  setPauseControlsVisible(true);
   
   // Show mobile controls on touch devices
   if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
@@ -1528,6 +1587,28 @@ function gameLoop(timestamp) {
 }
 
 // ===== UI EVENT LISTENERS =====
+const pauseButtons = [document.getElementById('pauseBtn'), document.getElementById('pauseBtnMobile')].filter(Boolean);
+
+function setPauseButtonState(isPaused) {
+  pauseButtons.forEach(button => {
+    button.textContent = isPaused ? '▶' : '⏸';
+    button.classList.toggle('is-paused', isPaused);
+  });
+}
+
+function setPauseControlsVisible(visible) {
+  const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  const desktopPause = document.getElementById('pauseBtn');
+  const mobileHud = document.getElementById('mobile-hud');
+
+  if (desktopPause) {
+    desktopPause.style.display = visible && !isTouchDevice ? 'flex' : 'none';
+  }
+  if (mobileHud) {
+    mobileHud.style.display = visible && isTouchDevice ? 'flex' : 'none';
+  }
+}
+
 document.getElementById('startBtn').addEventListener('click', () => {
   initAudio();
   startGame();
@@ -1542,24 +1623,23 @@ document.getElementById('menuBtn').addEventListener('click', () => {
   document.getElementById('game-over-screen').style.display = 'none';
   document.getElementById('start-screen').style.display = 'flex';
   document.getElementById('hud').style.display = 'none';
-  document.getElementById('pauseBtn').style.display = 'none';
+  setPauseControlsVisible(false);
+  setPauseButtonState(false);
   document.getElementById('mobile-controls').style.display = 'none';
 });
 
-document.getElementById('pauseBtn').addEventListener('click', () => {
+pauseButtons.forEach(button => button.addEventListener('click', () => {
   if (gameState === 'playing') {
     gameState = 'paused';
-    document.getElementById('pauseBtn').textContent = '▶';
-    document.getElementById('pauseBtn').classList.add('is-paused');
+    setPauseButtonState(true);
     stopEngineSound();
   } else if (gameState === 'paused') {
     gameState = 'playing';
-    document.getElementById('pauseBtn').textContent = '⏸';
-    document.getElementById('pauseBtn').classList.remove('is-paused');
+    setPauseButtonState(false);
     startEngineSound();
     lastTime = performance.now();
   }
-});
+}));
 
 // Car selection
 document.querySelectorAll('.car-option').forEach(el => {
